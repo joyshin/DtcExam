@@ -1,13 +1,16 @@
 package net.skcomms.search.backend.client;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.skcomms.search.backend.shared.ContactInfo;
 import net.skcomms.search.backend.shared.FieldVerifier;
 
 import com.google.gwt.cell.client.AbstractCell;
 import com.google.gwt.cell.client.Cell;
+import com.google.gwt.cell.client.TextCell;
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Style.Unit;
@@ -17,6 +20,7 @@ import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.event.dom.client.KeyUpHandler;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
+import com.google.gwt.user.cellview.client.CellBrowser;
 import com.google.gwt.user.cellview.client.CellList;
 import com.google.gwt.user.cellview.client.CellTree;
 import com.google.gwt.user.cellview.client.HasKeyboardSelectionPolicy.KeyboardSelectionPolicy;
@@ -50,6 +54,8 @@ public class DtcExam implements EntryPoint {
 			.create(GreetingService.class);
 
 	private final StackLayoutPanel stackLayoutPanel = new StackLayoutPanel(Unit.EM);
+
+	private Map<Object, DataBox<ContactInfo>> widgetDataMap = new HashMap<Object, DataBox<ContactInfo>>();
 
 	private static final SelectionModel<ContactInfo> SELECTION_MODEL = new SingleSelectionModel<ContactInfo>();
 	static {
@@ -92,11 +98,13 @@ public class DtcExam implements EntryPoint {
 		RootPanel.get("topPanelContainer").add(stackLayoutPanel);
 		
 		addPersonalPanel("Jang's Contact List");
+		addJangPanel("Jang's Contact Browser");
 		addPersonalPanel("Kang's Contact List");
 		addPersonalPanel("Kuwon's Contact List");
 		addPersonalPanel("Seok's Contact List");
 		addPersonalPanel("Shin's Contact List");
-		addShinsPanel("Contact List");
+		
+		addShinsPanel("Contact List");		
 
 		final Button sendButton = new Button("Send");
 		final TextBox nameField = new TextBox();
@@ -111,7 +119,7 @@ public class DtcExam implements EntryPoint {
 		// Add the nameField and sendButton to the RootPanel
 		// Use RootPanel.get() to get the entire body element
 		RootPanel.get("nameFieldContainer").add(nameField);
-		RootPanel.get("emailFieldContainer").add(emailField);
+		RootPanel.get("emailFieldContainer").add(emailField);		
 		RootPanel.get("sendButtonContainer").add(sendButton);
 		RootPanel.get("nameErrorLabelContainer").add(nameErrorLabel);
 		RootPanel.get("emailErrorLabelContainer").add(emailErrorLabel);
@@ -119,7 +127,7 @@ public class DtcExam implements EntryPoint {
 		// Focus the cursor on the name field when the app loads
 		nameField.setFocus(true);
 		nameField.selectAll();
-
+		
 		// Create a handler for the sendButton and nameField
 		class MyHandler implements ClickHandler, KeyUpHandler {
 			@Override
@@ -161,7 +169,8 @@ public class DtcExam implements EntryPoint {
 							public void onFailure(Throwable caught) {
 								Window.alert(caught.getMessage());
 							}
-
+/*
+<<<<<<< HEAD
 							@Override
 							public void onSuccess(ContactInfo contactInfo) {
 								Widget scrollPanel = stackLayoutPanel.getVisibleWidget();
@@ -172,6 +181,14 @@ public class DtcExam implements EntryPoint {
 								box.add(contactInfo);
 							}
 						});
+======= */
+						@Override
+						public void onSuccess(ContactInfo contactInfo) {
+							Widget w = stackLayoutPanel.getVisibleWidget();
+							DataBox<ContactInfo> box = widgetDataMap.get(w);
+							box.add(contactInfo);
+						}
+					});
 			}
 		}
 
@@ -179,6 +196,69 @@ public class DtcExam implements EntryPoint {
 		MyHandler handler = new MyHandler();
 		sendButton.addClickHandler(handler);
 		nameField.addKeyUpHandler(handler);
+		
+		initShin();
+	}
+	private void initShin()	{
+		((TextBox)RootPanel.get("emailFieldContainer").getWidget(0)).setText("shin@sk.com");
+	}
+
+	private void addJangPanel(String header) {
+		final List<String> categories = new ArrayList<String>();
+		//categories.add("Myself");
+		categories.add("Family");
+		final List<ContactInfo> contactInfos = new ArrayList<ContactInfo>();
+		contactInfos.add(new ContactInfo("Yang", "abc@sk.com", "Family"));
+		final ListDataProvider<String> rootProvider = new ListDataProvider<String>(categories);
+		
+		class MyTreeViewModel implements TreeViewModel {
+			@Override
+			public <T> NodeInfo<?> getNodeInfo(T value) {
+				if (value == null) {
+					return new DefaultNodeInfo<String>(rootProvider, new TextCell());
+				}
+				else if (value instanceof String) {
+					ListDataProvider<ContactInfo> provider = new ListDataProvider<ContactInfo>();
+					for (ContactInfo ci : contactInfos) {
+						if (ci.getCategory().equals(value)) {
+							provider.getList().add(ci);
+						}
+					}
+					return new DefaultNodeInfo<ContactInfo>(provider, ContactInfoCell.getInstacne());
+				}
+				
+				return null;
+			}
+
+			@Override
+			public boolean isLeaf(Object value) {
+				return (value instanceof ContactInfo);
+			}
+			
+			public void refresh() {
+				rootProvider.refresh();
+			}
+		};
+		final MyTreeViewModel treeViewModel = new MyTreeViewModel();
+		final CellBrowser browser = new CellBrowser(treeViewModel, null);
+		browser.setKeyboardSelectionPolicy(KeyboardSelectionPolicy.ENABLED);
+		
+		
+		DataBox<ContactInfo> box = new DataBox<ContactInfo>() {
+			@Override
+			public void add(ContactInfo contactInfo) {
+				if (!contactInfos.contains(contactInfo)) {
+				    contactInfos.add(contactInfo);
+				}
+				if (!categories.contains(contactInfo.getCategory())) {
+					categories.add(contactInfo.getCategory());
+				}
+				treeViewModel.refresh();
+			}
+		};
+		
+		widgetDataMap.put(browser, box);
+		stackLayoutPanel.add(browser, header, 2);
 	}
 
 	/**
@@ -200,41 +280,89 @@ public class DtcExam implements EntryPoint {
 				}
 			}
 		};
-		cellList.setLayoutData(box);
-
-		stackLayoutPanel.add(new ScrollPanel(cellList), header, 2);
+		
+		ScrollPanel panel = new ScrollPanel(cellList);
+		widgetDataMap.put(panel, box);
+		stackLayoutPanel.add(panel, header, 2);
 	}
 
 	private void addShinsPanel(String header) {
-		// Create a model for the tree.
-		final TreeViewModel model = new CustomTreeModel1();
-
-		final CellTree cellTree = new CellTree(model, null);		
-		cellTree.setKeyboardSelectionPolicy(KeyboardSelectionPolicy.ENABLED);
+				
+		final List<String> categories = new ArrayList<String>();		
+		final List<ContactInfo> contactInfos = new ArrayList<ContactInfo>();		
 		
-		final List<ContactInfo> values = new ArrayList<ContactInfo>();
+		final ListDataProvider<String> rootProvider = new ListDataProvider<String>(categories);
+		
+		// by joyshin
+		final ListDataProvider<ContactInfo> contactProvider = new ListDataProvider<ContactInfo>(contactInfos);
+						
+		categories.add("Family");
+		contactInfos.add(new ContactInfo("Yang", "abc@sk.com", "Family"));
+		
+		class MyTreeViewModel implements TreeViewModel {
+			@Override
+			public <T> NodeInfo<?> getNodeInfo(T value) {
+				if (value == null) {
+					return new DefaultNodeInfo<String>(rootProvider, new TextCell());
+				}
+				else if (value instanceof String) {
+					ListDataProvider<ContactInfo> provider = new ListDataProvider<ContactInfo>();
+					for (ContactInfo ci : contactInfos) {
+						if (ci.getCategory().equals(value)) {
+							provider.getList().add(ci);
+						}
+					}					
+					return new DefaultNodeInfo<ContactInfo>(provider, ContactInfoCell.getInstacne());
+				}
+				
+				return null;
+			}
+
+			@Override
+			public boolean isLeaf(Object value) {
+				return (value instanceof ContactInfo);
+			}
+			
+			public void refresh() {
+				rootProvider.refresh();
+				// by joyshin
+				contactProvider.refresh();
+			}
+		};
+		final MyTreeViewModel treeViewModel = new MyTreeViewModel();
+		final CellBrowser browser = new CellBrowser(treeViewModel, null);
+		browser.setKeyboardSelectionPolicy(KeyboardSelectionPolicy.ENABLED);
+		
+		
 		DataBox<ContactInfo> box = new DataBox<ContactInfo>() {
 			@Override
 			public void add(ContactInfo contactInfo) {
-				if (!values.contains(contactInfo)) {
-					values.add(contactInfo);
-					((CustomTreeModel1)model).addContactInfo(contactInfo);
-
-				    // Open the first playlist by default.
-				    TreeNode rootNode = cellTree.getRootTreeNode();
-				    TreeNode firstPlaylist = rootNode.setChildOpen(0, true);
-				    rootNode.setChildOpen(0, true, true);
-				    				    
-				    firstPlaylist.setChildOpen(0, true);
-				    firstPlaylist.setChildOpen(0, true, true);
-
-				    //cellList.setRowCount(values.size(), true);
-					//cellList.setRowData(0, values);
+				if (!contactInfos.contains(contactInfo)) {
+				    contactInfos.add(contactInfo);
 				}
+				if (!categories.contains(contactInfo.getCategory())) {
+					categories.add(contactInfo.getCategory());
+				}				
+				
+				treeViewModel.refresh();
+				
+				TreeNode treeNode = browser.getRootTreeNode();
+				for(int i=0 ; i<treeNode.getChildCount() ; i++) {
+					if(treeNode.isChildOpen(i) == true){
+						treeNode.setChildOpen(i, false);
+						treeNode.setChildOpen(i, true);				
+					}
+				}
+				
 			}
 		};
-		cellTree.setLayoutData(box);
-		stackLayoutPanel.add(new ScrollPanel(cellTree), header, 2);
+		
+		widgetDataMap.put(browser, box);
+		stackLayoutPanel.add(browser, header, 2);
+	}
+	
+	private void addCellTreePanel(String header) {
+		
 	}
 	
 	private static class CustomTreeModel1 implements TreeViewModel {
@@ -265,6 +393,7 @@ public class DtcExam implements EntryPoint {
 			composers = new ArrayList<Composer>();
 
 			// Add compositions by Beethoven.
+			/*
 			{
 				Composer Friend = new Composer("Friend");
 				
@@ -275,7 +404,7 @@ public class DtcExam implements EntryPoint {
 				
 				composers.add(Friend);
 			}
-
+			 */
 			// Add compositions by Brahms.
 			{
 				Composer unknown = new Composer("Unknown");
