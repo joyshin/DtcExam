@@ -69,25 +69,6 @@ public class DtcExam implements EntryPoint {
 		});
 	}
 
-	public static class CategoryNode {
-		private final String name;
-		private final List<ContactInfo> contactInfos = new ArrayList<ContactInfo>();
-
-		public CategoryNode(String name) {
-			this.name = name;
-
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		public List<ContactInfo> getContactInfos() {
-			return contactInfos;
-		}
-
-	}
-
 	/**
 	 * This is the entry point method.
 	 */
@@ -101,10 +82,8 @@ public class DtcExam implements EntryPoint {
 		addJangPanel("Jang's Contact Browser");
 		addPersonalPanel("Kang's Contact List");
 		addPersonalPanel("Kuwon's Contact List");
-		addPersonalPanel("Seok's Contact List");
-		addPersonalPanel("Shin's Contact List");
-		
-		addShinsPanel("Contact List");		
+		addPersonalPanel("Seok's Contact List");		
+		addShinPanel("Shin's Contact List");		
 
 		final Button sendButton = new Button("Send");
 		final TextBox nameField = new TextBox();
@@ -169,19 +148,7 @@ public class DtcExam implements EntryPoint {
 							public void onFailure(Throwable caught) {
 								Window.alert(caught.getMessage());
 							}
-/*
-<<<<<<< HEAD
-							@Override
-							public void onSuccess(ContactInfo contactInfo) {
-								Widget scrollPanel = stackLayoutPanel.getVisibleWidget();
-								Widget cellWidget = ((ScrollPanel) scrollPanel).getWidget();
-								
-								@SuppressWarnings("unchecked")
-								DataBox<ContactInfo> box = (DataBox<ContactInfo>) cellWidget.getLayoutData();
-								box.add(contactInfo);
-							}
-						});
-======= */
+
 						@Override
 						public void onSuccess(ContactInfo contactInfo) {
 							Widget w = stackLayoutPanel.getVisibleWidget();
@@ -285,34 +252,17 @@ public class DtcExam implements EntryPoint {
 		widgetDataMap.put(panel, box);
 		stackLayoutPanel.add(panel, header, 2);
 	}
-
-	private void addShinsPanel(String header) {
-				
-		final List<String> categories = new ArrayList<String>();		
-		final List<ContactInfo> contactInfos = new ArrayList<ContactInfo>();		
-		
-		final ListDataProvider<String> rootProvider = new ListDataProvider<String>(categories);
-		
-		// by joyshin
-		final ListDataProvider<ContactInfo> contactProvider = new ListDataProvider<ContactInfo>(contactInfos);
-						
-		categories.add("Family");
-		contactInfos.add(new ContactInfo("Yang", "abc@sk.com", "Family"));
-		
+	
+	private void addShinPanel(String header) {
+			
 		class MyTreeViewModel implements TreeViewModel {
 			@Override
 			public <T> NodeInfo<?> getNodeInfo(T value) {
 				if (value == null) {
-					return new DefaultNodeInfo<String>(rootProvider, new TextCell());
+					return new DefaultNodeInfo<String>(ProviderMap.getCategoryProvider(), new TextCell());
 				}
-				else if (value instanceof String) {
-					ListDataProvider<ContactInfo> provider = new ListDataProvider<ContactInfo>();
-					for (ContactInfo ci : contactInfos) {
-						if (ci.getCategory().equals(value)) {
-							provider.getList().add(ci);
-						}
-					}					
-					return new DefaultNodeInfo<ContactInfo>(provider, ContactInfoCell.getInstacne());
+				else if (value instanceof String) {				
+					return new DefaultNodeInfo<ContactInfo>(ProviderMap.getContacInfoProvider(value), ContactInfoCell.getInstacne());
 				}
 				
 				return null;
@@ -321,232 +271,65 @@ public class DtcExam implements EntryPoint {
 			@Override
 			public boolean isLeaf(Object value) {
 				return (value instanceof ContactInfo);
-			}
-			
-			public void refresh() {
-				rootProvider.refresh();
-				// by joyshin
-				contactProvider.refresh();
-			}
+			}			
 		};
-		final MyTreeViewModel treeViewModel = new MyTreeViewModel();
-		final CellBrowser browser = new CellBrowser(treeViewModel, null);
-		browser.setKeyboardSelectionPolicy(KeyboardSelectionPolicy.ENABLED);
-		
 		
 		DataBox<ContactInfo> box = new DataBox<ContactInfo>() {
 			@Override
 			public void add(ContactInfo contactInfo) {
-				if (!contactInfos.contains(contactInfo)) {
-				    contactInfos.add(contactInfo);
-				}
-				if (!categories.contains(contactInfo.getCategory())) {
-					categories.add(contactInfo.getCategory());
-				}				
-				
-				treeViewModel.refresh();
-				
-				TreeNode treeNode = browser.getRootTreeNode();
-				for(int i=0 ; i<treeNode.getChildCount() ; i++) {
-					if(treeNode.isChildOpen(i) == true){
-						treeNode.setChildOpen(i, false);
-						treeNode.setChildOpen(i, true);				
-					}
-				}
-				
+				ProviderMap.addContactInfo(contactInfo);						
 			}
 		};
+
+		final MyTreeViewModel treeViewModel = new MyTreeViewModel();
+		//final CellTree cellTree = new CellTree(treeViewModel, null);
+		final CellBrowser cell = new CellBrowser(treeViewModel, null);
+
+		cell.setKeyboardSelectionPolicy(KeyboardSelectionPolicy.ENABLED);		
+		widgetDataMap.put(cell, box);
+		stackLayoutPanel.add(cell, header, 2);
 		
-		widgetDataMap.put(browser, box);
-		stackLayoutPanel.add(browser, header, 2);
-	}
-	
-	private void addCellTreePanel(String header) {
-		
-	}
-	
-	private static class CustomTreeModel1 implements TreeViewModel {
-
-		private final List<Composer> composers;
-				
-		/**
-		 * This selection model is shared across all leaf nodes. A selection
-		 * model can also be shared across all nodes in the tree, or each set of
-		 * child nodes can have its own instance. This gives you flexibility to
-		 * determine how nodes are selected.
-		 */
-		private final static SingleSelectionModel<ContactInfo> selectionModel = new SingleSelectionModel<ContactInfo>();
-		static {
-			selectionModel.addSelectionChangeHandler(new SelectionChangeEvent.Handler() {
-			
-			public void onSelectionChange(SelectionChangeEvent event) {
-				ContactInfo selected = selectionModel.getSelectedObject();
-					if (selected != null) {
-						Window.alert("You selected: " + selected);					
-					}
-				}
-			});
-		}
-		
-		public CustomTreeModel1() {
-			// Create a database of information.
-			composers = new ArrayList<Composer>();
-
-			// Add compositions by Beethoven.
-			/*
-			{
-				Composer Friend = new Composer("Friend");
-				
-				Friend.addContactList(new ContactList("Best"));				
-				Friend.addContactList(new ContactList("Nomal"));
-				
-				// symphonies.addSong("No. 9 - D Minor");
-				
-				composers.add(Friend);
-			}
-			 */
-			// Add compositions by Brahms.
-			{
-				Composer unknown = new Composer("Unknown");
-				unknown.addContactList(new ContactList("Best"));				
-				unknown.addContactList(new ContactList("Nomal"));
-				
-				// symphonies.addSong("No. 9 - D Minor");
-				
-				composers.add(unknown);
-			}			
-		}
-
-		/**
-		 * Get the {@link NodeInfo} that provides the children of the specified
-		 * value.
-		 */
-		public <T> NodeInfo<?> getNodeInfo(T value) {
-			if (value == null) {
-				// LEVEL 0.
-				// We passed null as the root value. Return the composers.
-
-				// Create a data provider that contains the list of composers.
-				ListDataProvider<Composer> dataProvider = new ListDataProvider<Composer>(composers);
-
-				// Create a cell to display a composer.
-				Cell<Composer> cell = new AbstractCell<Composer>() {
-					@Override
-					public void render(Context context, Composer value, SafeHtmlBuilder sb) {
-						if (value != null) {
-							sb.appendEscaped(value.getName());
-						}
-					}
-				};
-
-				// Return a node info that pairs the data provider and the cell.
-				return new DefaultNodeInfo<Composer>(dataProvider, cell);
-			} else if (value instanceof Composer) {
-				// LEVEL 1.
-				// We want the children of the composer. Return the playlists.
-				ListDataProvider<ContactList> dataProvider = new ListDataProvider<ContactList>(((Composer) value).getContactLists());
-				Cell<ContactList> cell = new AbstractCell<ContactList>() {
-					@Override
-					public void render(Context context, ContactList value,	SafeHtmlBuilder sb) {
-						if (value != null) {
-							sb.appendEscaped(value.getCategoryName());
-						}
-					}
-				};
-				return new DefaultNodeInfo<ContactList>(dataProvider, cell);
-			} else if (value instanceof ContactList) {
-				// LEVEL 2 - LEAF.
-				// We want the children of the playlist. Return the songs.
-				ListDataProvider<ContactInfo> dataProvider = new ListDataProvider<ContactInfo>(((ContactList) value).getContactInfoList());
-
-				// Use the shared selection model.
-				return new DefaultNodeInfo<ContactInfo>(dataProvider, ContactInfoCell.getInstacne(), selectionModel, null);
-			}
-
-			return null;
-		}
-
-		/**
-		 * Check if the specified value represents a leaf node. Leaf nodes
-		 * cannot be opened.
-		 */
-		
-		public boolean isLeaf(Object value) {
-			// The leaf nodes are the songs, which are Strings.
-			if (value instanceof String) {
-				return true;
-			}
-			return false;
-		}
-		
-		
-		public void addContactInfo(ContactInfo contactInfo) {			
-			this.composers.get(0).contactLists.get(0).addContactInfo(contactInfo);
-		}
-
-	}
-	
-	
-
-	private static class Composer {
-		private final String name;
-		private final List<ContactList> contactLists = new ArrayList<ContactList>();
-
-		public Composer(String name) {
-			this.name = name;
-		}
-
-		/**
-		 * Add a playlist to the composer.
-		 * 
-		 * @param playlist
-		 *            the playlist to add
-		 */
-		public ContactList addContactList(ContactList contactList) {
-			contactLists.add(contactList);
-			return contactList;
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		/**
-		 * Return the rockin' playlist for this composer.
-		 */
-		public List<ContactList> getContactLists() {
-			return contactLists;
-		}
-	}
-	
-	private static class ContactList {
-
-		private final String categoryName;
-		private final List<ContactInfo> listContacInfo = new ArrayList<ContactInfo>();
-
-		public ContactList(String category) {
-			this.categoryName = category;
-		}
-
-		/**
-		 * Add a song to the playlist.
-		 * 
-		 * @param name
-		 *            the name of the song
-		 */
-		public void addContactInfo(ContactInfo contactInfo) {
-			listContacInfo.add(contactInfo);
-		}
-
-		public String getCategoryName() {
-			return categoryName;
-		}
-
-		/**
-		 * Return the list of songs in the playlist.
-		 */
-		public List<ContactInfo> getContactInfoList() {
-			return listContacInfo;
-		}
+		ProviderMap.addContactInfo(new ContactInfo("Shin", "abc@sk.com", "Family"));
 	}	
+}
+
+class ProviderMap {
+	static private ListDataProvider<String> categoryProviderList = new ListDataProvider<String>();
+	static private Map<String, ListDataProvider<ContactInfo>> contactInfoProviderMap = new HashMap<String, ListDataProvider<ContactInfo>>();
+		
+	public static ListDataProvider<String> getCategoryProvider() {
+		return categoryProviderList;
+	}
+	
+	public static void addContactInfo(ContactInfo contactInfo) {
+			
+		ListDataProvider<ContactInfo> provider = contactInfoProviderMap.get(contactInfo.getCategory());
+		
+		if(provider == null) {
+			categoryProviderList.getList().add(contactInfo.getCategory());
+			
+			provider = new ListDataProvider<ContactInfo>();			
+			contactInfoProviderMap.put(contactInfo.getCategory(), provider);
+		}					
+		
+		// 중복체크
+		for (ContactInfo contact : provider.getList()) {
+			if (contact.equals(contactInfo)) {
+				return;
+			}
+		}
+		
+		provider.getList().add(contactInfo);
+		//categoryProviderList.refresh();
+		//getContacInfoProvider(contactInfo.getCategory()).refresh();
+	}
+	
+	public static ListDataProvider<ContactInfo> getContacInfoProvider(Object category) {
+		return contactInfoProviderMap.get(category);
+	}	
+//	public static void refresh(String category) {
+//		categoryProviderList.refresh();
+//		getContacInfoProvider(category).refresh();
+//	}
+	
 }

@@ -30,6 +30,9 @@ public class GreetingServiceImpl extends RemoteServiceServlet implements
 		
 		Person kim = new Kim();
 		friends.put(kim.getName(), kim);
+		
+		Person shin = new Shin();
+		friends.put(shin.getName(), shin);
 	}
 
 	@Override
